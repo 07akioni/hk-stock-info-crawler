@@ -121,35 +121,39 @@ const stockNumbers = require('./stock-numbers')
 ;(async () => {
   init()
   for (const stockNumber of stockNumbers) {
-    const noticesLink = await getHSharesNoticesLink(stockNumber)
-    if (noticesLink === null) {
-      console.log(stockNumber + ' has no corresponding notices link')
-      return
-    }
-    const stockDataPath = path.resolve(dataPath, stockNumber)
-    createDirIfNotExists(stockDataPath)
-    const formLinks = await getFormLinks(noticesLink)
-    console.log(`${stockNumber} : get notices links (${formLinks.length})`)
-    for (const [index, formLink] of formLinks.entries()) {
-      const dataSerialMatchResult = formLink.match(/\?fn=([^&]+)/)
-      if (!dataSerialMatchResult) {
-        console.error('stock ' + stockNumber + ' link has not serial number init')
-        break
+    try {
+      const noticesLink = await getHSharesNoticesLink(stockNumber)
+      if (noticesLink === null) {
+        console.log(stockNumber + ' has no corresponding notices link')
+        return
       }
-      const dataSerial = dataSerialMatchResult[1]
-      const filePath = path.resolve(
-        stockDataPath,
-        stockNumber + '-' + dataSerial + '.json'
-      )
-      if (fs.existsSync(filePath)) {
-        console.log(`${stockNumber}: ${dataSerial} exists (${index + 1})`)
-        continue
-      } else {
-        console.log(`${stockNumber}: get ${dataSerial} (${index + 1})`)
+      const stockDataPath = path.resolve(dataPath, stockNumber)
+      createDirIfNotExists(stockDataPath)
+      const formLinks = await getFormLinks(noticesLink)
+      console.log(`${stockNumber} : get notices links (${formLinks.length})`)
+      for (const [index, formLink] of formLinks.entries()) {
+        const dataSerialMatchResult = formLink.match(/\?fn=([^&]+)/)
+        if (!dataSerialMatchResult) {
+          console.error('stock ' + stockNumber + ' link has not serial number init')
+          break
+        }
+        const dataSerial = dataSerialMatchResult[1]
+        const filePath = path.resolve(
+          stockDataPath,
+          stockNumber + '-' + dataSerial + '.json'
+        )
+        if (fs.existsSync(filePath)) {
+          console.log(`${stockNumber}: ${dataSerial} exists (${index + 1})`)
+          continue
+        } else {
+          console.log(`${stockNumber}: get ${dataSerial} (${index + 1})`)
+        }
+        const formData = await getFormData(formLink)
+        const formDataLiteral = JSON.stringify(formData, 0, 2)
+        fs.writeFileSync(filePath, formDataLiteral)
       }
-      const formData = await getFormData(formLink)
-      const formDataLiteral = JSON.stringify(formData, 0, 2)
-      fs.writeFileSync(filePath, formDataLiteral)
+    } catch (err) {
+      console.error(`${stockNumber}: error, ${err}`)
     }
   }
 })()
