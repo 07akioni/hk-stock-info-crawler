@@ -62,6 +62,7 @@ async function getFormLinks (noticesLink) {
 async function getFormData (formLink) {
   const response = await request.get(formLink)
   const $ = cheerio.load(response.text)
+  const dataSerial = $('#lblDSerialNo').text() 
   const data17 = {
     lblDEvtReason: $('span#lblDEvtReason').text(),
     lblDEvtCapBefore: $('span#lblDEvtCapBefore').text(),
@@ -80,6 +81,7 @@ async function getFormData (formLink) {
   const data22 = $('#grdCtrlCorp').html()
   const data27 = $('#lblDSuppInfo').text()
   return {
+    dataSerial,
     data17,
     data22,
     data27
@@ -114,28 +116,51 @@ async function getFormData (formLink) {
 
 const dataPath = path.resolve(__dirname, 'data')
 
-const stockNumber = '817' // 3968
+const stockNumbers = require('./stock-numbers')
 
 ;(async () => {
   init()
-  const noticesLink = await getHSharesNoticesLink(stockNumber)
-  if (noticesLink === null) {
-    console.log(stockNumber + ' has no corresponding notices link')
-    return
-  }
-  const formLinks = await getFormLinks(noticesLink)
-  for (const [index, formLink] of formLinks.entries()) {
-    const formData = await getFormData(formLink)
-    const formDataLiteral = JSON.stringify(formData, 0, 2)
-    fs.writeFileSync(path.resolve(
-      dataPath,
-      stockNumber + '-' + (index + 1)
-    ), formDataLiteral)
+  for (const stockNumber of stockNumbers) {
+    const noticesLink = await getHSharesNoticesLink(stockNumber)
+    if (noticesLink === null) {
+      console.log(stockNumber + ' has no corresponding notices link')
+      return
+    }
+    const stockDataPath = path.resolve(dataPath, stockNumber)
+    createDirIfNotExists(stockDataPath)
+    const formLinks = await getFormLinks(noticesLink)
+    console.log(`${stockNumber} : get notices links (${formLinks.length})`)
+    for (const [index, formLink] of formLinks.entries()) {
+      const dataSerialMatchResult = formLink.match(/\?fn=([^&]+)/)
+      if (!dataSerialMatchResult) {
+        console.error('stock ' + stockNumber + ' link has not serial number init')
+        break
+      }
+      const dataSerial = dataSerialMatchResult[1]
+      const filePath = path.resolve(
+        stockDataPath,
+        stockNumber + '-' + dataSerial + '.json'
+      )
+      if (fs.existsSync(filePath)) {
+        console.log(`${stockNumber}: ${dataSerial} exists (${index + 1})`)
+        continue
+      } else {
+        console.log(`${stockNumber}: get ${dataSerial} (${index + 1})`)
+      }
+      const formData = await getFormData(formLink)
+      const formDataLiteral = JSON.stringify(formData, 0, 2)
+      fs.writeFileSync(filePath, formDataLiteral)
+    }
   }
 })()
 
-function init () {
-  if (!fs.existsSync(dataPath)) {
-    fs.mkdirSync(dataPath)
+
+function createDirIfNotExists (dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath)
   }
+}
+
+function init () {
+  createDirIfNotExists(dataPath)
 }
