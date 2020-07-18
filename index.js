@@ -120,7 +120,7 @@ const stockNumbers = require('./stock-numbers')
 
 ;(async () => {
   init()
-  for (const stockNumber of stockNumbers) {
+  for (const [stockIndex, stockNumber] of stockNumbers.entries()) {
     try {
       const noticesLink = await getHSharesNoticesLink(stockNumber)
       if (noticesLink === null) {
@@ -130,7 +130,7 @@ const stockNumbers = require('./stock-numbers')
       const stockDataPath = path.resolve(dataPath, stockNumber)
       createDirIfNotExists(stockDataPath)
       const formLinks = await getFormLinks(noticesLink)
-      console.log(`${stockNumber} : get notices links (${formLinks.length})`)
+      console.log(`(${stockIndex + 1}/${stockNumbers.length}) ${stockNumber} : get notices links (${formLinks.length})`)
       for (const [index, formLink] of formLinks.entries()) {
         const dataSerialMatchResult = formLink.match(/\?fn=([^&]+)/)
         if (!dataSerialMatchResult) {
@@ -143,10 +143,10 @@ const stockNumbers = require('./stock-numbers')
           stockNumber + '-' + dataSerial + '.json'
         )
         if (fs.existsSync(filePath)) {
-          console.log(`${stockNumber}: ${dataSerial} exists (${index + 1})`)
+          console.log(`(${stockIndex + 1}/${stockNumbers.length}) ${stockNumber}: ${dataSerial} exists (${index + 1})`)
           continue
         } else {
-          console.log(`${stockNumber}: get ${dataSerial} (${index + 1})`)
+          console.log(`(${stockIndex + 1}/${stockNumbers.length}) ${stockNumber}: get ${dataSerial} (${index + 1})`)
         }
         const formData = await getFormData(formLink)
         const formDataLiteral = JSON.stringify(formData, 0, 2)
